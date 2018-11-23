@@ -52,25 +52,36 @@ class fusion:
         max_date = self.master[[self.id_emp, self.end_hist]].sort_values(self.end_hist).groupby([self.id_emp], as_index=False).max()
         self.accepted_interval = pd.merge(min_date, max_date[[self.id_emp,self.end_hist]], on=self.id_emp, how="left")
         self.accepted_interval.rename(columns={"Start_Date":"Min_Date","End_Date":"Max_Date"}, inplace = True) # Rename the columns to avoid confusion with other merged columns
-        print(self.master.columns)
+
         i=0
+        ac = self.accepted_interval
         for key, value in self.data.items():
             i += 1
             df = value
             ma = self.master
-            ac = self.accepted_interval
-            sql = "Select ac." + self.id_emp + ", ac.min_Date, ac.max_Date, df." + self.start_hist + ", df." + self.end_hist + " from ac, df on (df." + self.id_emp + "=" + "ac." + self.id_emp+ ");"
+            sql = "Select ac." + self.id_emp + ", ac.min_Date, ac.max_Date, df." + self.start_hist + ", df." + self.end_hist + " from ac, df on (df." + self.id_emp + "=" + "ac." + self.id_emp + ");"
             sql2 = "Select ac.Personnel_number, ac.min_Date, ac.max_Date, ma." + self.start_hist + ", ma." + self.end_hist + " from ac, ma on (ma." + self.id_emp + "=" + "ac." + self.id_emp + \
                    ";)"
+            result =pd.DataFrame()
             result = ps.sqldf(sql, locals())
-            print(key, sql)
-            if i==1:
+
+            if i == 1:
                 self.accepted_interval = result
+                result = pd.DataFrame
+                #print(self.accepted_interval)
 
             else:
-                self.accepted_interval = pd.concat[self.accepted_interval,result]
+                accepted_interval = [self.accepted_interval, result]
+                self.accepted_interval = pd.concat(accepted_interval, ignore_index=True)
 
-        print(self.accepted_interval.head(100))
+        for i,val in self.accepted_interval.itertuples():
+            print(i)
+              #  print(self.accepted_interval.loc[self.accepted_interval["Personnel_number"]==2])
+
+
+
+
+        #print(self.accepted_interval)
 
 
 
