@@ -1,9 +1,10 @@
 import pandas as pd
 import pandasql as ps
+from xlsxwriter import *
 
 
 class fusion:
-    def __init__(self, imported_files, start_hist, end_hist, id_employee):
+    def __init__(self, imported_files, start_hist, end_hist, id_employee, rep_export):
         self.files_repertories = imported_files  # Imported files repertories
         self.data = {}
         self.master = pd.DataFrame # Dataframe that contain the main file that will define the beginning and the end
@@ -11,6 +12,7 @@ class fusion:
         self.end_hist = end_hist #Text label of end dates in files
         self.id_emp = id_employee #Text label of employees id
         self.accepted_interval = pd.DataFrame
+        self.export_dest = rep_export
         self.__loading()
 
     def __loading(self):
@@ -52,9 +54,9 @@ class fusion:
         max_date = self.master[[self.id_emp, self.end_hist]].sort_values(self.end_hist).groupby([self.id_emp], as_index=False).max()
         self.accepted_interval = pd.merge(min_date, max_date[[self.id_emp,self.end_hist]], on=self.id_emp, how="left")
         self.accepted_interval.rename(columns={"Start_Date":"Min_Date","End_Date":"Max_Date"}, inplace = True) # Rename the columns to avoid confusion with other merged columns
-
         i=0
         ac = self.accepted_interval
+
         for key, value in self.data.items():
             i += 1
             df = value
@@ -66,20 +68,29 @@ class fusion:
             result = ps.sqldf(sql, locals())
 
             if i == 1:
+
                 self.accepted_interval = result
                 result = pd.DataFrame
-                #print(self.accepted_interval)
 
             else:
+
                 accepted_interval = [self.accepted_interval, result]
                 self.accepted_interval = pd.concat(accepted_interval, ignore_index=True)
 
-        for i,val in self.accepted_interval.itertuples():
-            print(i)
+        for i,val in enumerate(self.accepted_interval.itertuples()):  # Normalisation of out range dates
+
+            if self.accepted_interval.at[i,"Start_Date"] < self.accepted_interval.at[i, "Min_Date"]:
+                self.accepted_interval.at[i, "Start_Date"] = self.accepted_interval.at[i, "Min_Date"]
+
+            if self.accepted_interval.at[i,"End_Date"] > self.accepted_interval.at[i, "Max_Date"]:
+                self.accepted_interval.at[i, "End_Date"] = self.accepted_interval.at[i, "Max_Date"]
               #  print(self.accepted_interval.loc[self.accepted_interval["Personnel_number"]==2])
+        print(self.accepted_interval)
 
-
-
+    def export(self):
+        writer = pd.ExcelWriter(self.export_dest, engine='xlsxwriter')
+        self.accepted_interval.to_excel(writer, sheet_name="result")
+        writer.save()
 
         #print(self.accepted_interval)
 
@@ -90,9 +101,10 @@ class fusion:
 
 
 
-a = fusion(imported_files={"contrat_02": r"C:\Users\Sabri.GASMI\Desktop\Fusion\Old\CONTRAT_02.TXT",
-                           "contrat_01": r"C:\Users\Sabri.GASMI\Desktop\Fusion\Old\CONTRAT_01.TXT"}, start_hist="Start Date",
-           end_hist="End Date", id_employee="Personnel number")
+a = fusion(imported_files={"contrat_02": r"C:\Users\Sabri\Desktop\CONTRAT_02.TXT",
+                           "contrat_01": r"C:\Users\Sabri\Desktop\CONTRAT_01.TXT"}, start_hist="Start Date",
+           end_hist="End Date", id_employee="Personnel number",rep_export =r'C:\Users\Sabri\Desktop\resultat.xlsx')
 
 a.data_preparation()
 a.date_preparation()
+a.export()
