@@ -1,6 +1,7 @@
 import pandas as pd
 import pandasql as ps
 from xlsxwriter import *
+from datetime import datetime as dt
 
 
 class fusion:
@@ -16,7 +17,6 @@ class fusion:
         self.__loading()
 
     def __loading(self):
-        print(self.files_repertories.values)
 
         for key, value in self.files_repertories.items():
             try:
@@ -82,10 +82,15 @@ class fusion:
             if self.accepted_interval.at[i,"Start_Date"] < self.accepted_interval.at[i, "Min_Date"]:
                 self.accepted_interval.at[i, "Start_Date"] = self.accepted_interval.at[i, "Min_Date"]
 
-            if self.accepted_interval.at[i,"End_Date"] > self.accepted_interval.at[i, "Max_Date"]:
-                self.accepted_interval.at[i, "End_Date"] = self.accepted_interval.at[i, "Max_Date"]
               #  print(self.accepted_interval.loc[self.accepted_interval["Personnel_number"]==2])
-        print(self.accepted_interval)
+
+        self.accepted_interval = self.accepted_interval.drop(self.end_hist, axis=1)
+        self.accepted_interval = self.accepted_interval.drop_duplicates()
+
+        end_date = dt.strptime("31/12/2100", '%d/%m/%Y')
+
+        for i,val in enumerate(self.accepted_interval.itertuples()):
+
 
     def export(self):
         writer = pd.ExcelWriter(self.export_dest, engine='xlsxwriter')
@@ -101,9 +106,9 @@ class fusion:
 
 
 
-a = fusion(imported_files={"contrat_02": r"C:\Users\Sabri\Desktop\CONTRAT_02.TXT",
-                           "contrat_01": r"C:\Users\Sabri\Desktop\CONTRAT_01.TXT"}, start_hist="Start Date",
-           end_hist="End Date", id_employee="Personnel number",rep_export =r'C:\Users\Sabri\Desktop\resultat.xlsx')
+a = fusion(imported_files={"contrat_02": r"C:\Users\Sabri.GASMI\Desktop\DATA Amadeus\CONTRAT_02.TXT",
+                           "contrat_01": r"C:\Users\Sabri.GASMI\Desktop\DATA Amadeus\CONTRAT_01.TXT"}, start_hist="Start Date",
+           end_hist="End Date", id_employee="Personnel number",rep_export =r'C:\Users\Sabri.GASMI\Desktop\resultat.xlsx')
 
 a.data_preparation()
 a.date_preparation()
