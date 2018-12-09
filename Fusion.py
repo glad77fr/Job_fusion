@@ -2,7 +2,7 @@ import pandas as pd
 import pandasql as ps
 from xlsxwriter import *
 from datetime import datetime as dt
-
+from datetime import timedelta
 
 class fusion:
     def __init__(self, imported_files, start_hist, end_hist, id_employee, rep_export):
@@ -25,6 +25,7 @@ class fusion:
                 raise Exception('an error occur during the loading of the csv files')
 
     def data_preparation(self):
+        """Preparation of data: formating and typing"""
         i = 0
         for dataframe in self.data.values():
 
@@ -50,6 +51,7 @@ class fusion:
         self.master = list(self.data.values())[0] # Assign value for the master file
 
     def date_preparation(self):
+        """ Preparation of dates intervales that will be used next in the fusion process"""
         min_date = self.master[[self.id_emp, self.start_hist]].sort_values(self.start_hist).groupby([self.id_emp], as_index=False).min()
         max_date = self.master[[self.id_emp, self.end_hist]].sort_values(self.end_hist).groupby([self.id_emp], as_index=False).max()
         self.accepted_interval = pd.merge(min_date, max_date[[self.id_emp,self.end_hist]], on=self.id_emp, how="left")
@@ -77,27 +79,37 @@ class fusion:
                 accepted_interval = [self.accepted_interval, result]
                 self.accepted_interval = pd.concat(accepted_interval, ignore_index=True)
 
-        for i,val in enumerate(self.accepted_interval.itertuples()):  # Normalisation of out range dates
+        for i,val in enumerate(self.accepted_interval.itertuples()):  # Normalisation of the dates, if they aren't between the range min/max, they are changed to be between.
 
             if self.accepted_interval.at[i,"Start_Date"] < self.accepted_interval.at[i, "Min_Date"]:
                 self.accepted_interval.at[i, "Start_Date"] = self.accepted_interval.at[i, "Min_Date"]
 
-              #  print(self.accepted_interval.loc[self.accepted_interval["Personnel_number"]==2])
-
         self.accepted_interval = self.accepted_interval.drop(self.end_hist, axis=1)
         self.accepted_interval = self.accepted_interval.drop_duplicates()
+        self.accepted_interval = self.accepted_interval.assign(End_Date='')
+        self.accepted_interval["End_Date"] = pd.to_datetime(self.accepted_interval["End_Date"])
+        self.accepted_interval["Start_Date"] = pd.to_datetime(self.accepted_interval["Start_Date"])
+        self.accepted_interval = self.accepted_interval.sort_values(by = [self.id_emp, "Start_Date"])
+        self.accepted_interval = self.accepted_interval.reset_index(drop=True)
 
-        end_date = dt.strptime("31/12/2100", '%d/%m/%Y')
+        last_val_position = len(self.accepted_interval) - 1
 
-        for i,val in enumerate(self.accepted_interval.itertuples()):
-
+        for i,val in enumerate(self.accepted_interval.itertuples()): # Determination of the End_Date
+            if i != last_val_position:
+                if self.accepted_interval.at[i,self.id_emp] == self.accepted_interval.at[i+1, self.id_emp]:
+                    self.accepted_interval.at[i, "End_Date"] = self.accepted_interval.at[i+1, "Start_Date"] - timedelta(days=1)
+                else:
+                    self.accepted_interval.at[i, "End_Date"] = self.accepted_interval.at[i, "Max_Date"]
+            if i == last_val_position:
+                self.accepted_interval.at[i, "End_Date"] = self.accepted_interval.at[i, "Max_Date"]
+        self.accepted_interval = self.accepted_interval.drop(['Min_Date','Max_Date'], axis=1)
 
     def export(self):
         writer = pd.ExcelWriter(self.export_dest, engine='xlsxwriter')
         self.accepted_interval.to_excel(writer, sheet_name="result")
         writer.save()
 
-        #print(self.accepted_interval)
+
 
 
 
@@ -106,9 +118,9 @@ class fusion:
 
 
 
-a = fusion(imported_files={"contrat_02": r"C:\Users\Sabri.GASMI\Desktop\DATA Amadeus\CONTRAT_02.TXT",
-                           "contrat_01": r"C:\Users\Sabri.GASMI\Desktop\DATA Amadeus\CONTRAT_01.TXT"}, start_hist="Start Date",
-           end_hist="End Date", id_employee="Personnel number",rep_export =r'C:\Users\Sabri.GASMI\Desktop\resultat.xlsx')
+a = fusion(imported_files={"contrat_02": r"C:\Users\Sabri\Desktop\CONTRAT_02.TXT",
+                           "contrat_01": r"C:\Users\Sabri\Desktop\CONTRAT_01.TXT"}, start_hist="Start Date",
+           end_hist="End Date", id_employee="Personnel number",rep_export =r'C:\Users\Sabri\Desktop\resultat.xlsx')
 
 a.data_preparation()
 a.date_preparation()
